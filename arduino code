@@ -1,0 +1,166 @@
+#include "SoftwareSerial.h"
+#include "DFRobotDFPlayerMini.h"
+#include "SerialMP3Player.h"
+#include "Arduino.h"
+
+//Lets setup the DF Player
+SoftwareSerial mySoftwareSerial(10, 11); // RX, TX
+DFRobotDFPlayerMini myDFPlayer;
+void printDetail(uint8_t type, int value);
+
+// CONSTANTS
+// To read analog inputs, we need to use a GPIO pin that supports analogRead (i.e. prefixed with "A")
+const byte potPins[] = { A1, A0 };
+// This pin will be written LOW when the puzzle is solved
+const byte LEDyear = 2;   //green led displays when year is correct
+const byte LEDsound = 3;  //red led displays when puzzle is solved
+
+//An array for the correct answers
+int correctPosition[] = {4, 9, 13, 14, 15};
+
+//GLOBALS
+int inputValues[2] = {};  //potentiometer readings from 0 - 1023
+int potValues[2] = {};
+bool isSolved = false; //Let's set the puzzle as not solved to begin with
+
+
+void setup() {
+  //LETS SETUP THE DF PLAYER
+  mySoftwareSerial.begin(9600);
+  Serial.begin(115200);
+  
+  Serial.println();
+  Serial.println(F("DFRobot DFPlayer Mini Demo"));
+  Serial.println(F("Initializing DFPlayer ... (May take 3~5 seconds)"));
+  
+  if (!myDFPlayer.begin(mySoftwareSerial)) {  //Use softwareSerial to communicate with mp3.
+    Serial.println(F("Unable to begin:"));
+    Serial.println(F("1.Please recheck the connection!"));
+    Serial.println(F("2.Please insert the SD card!"));
+    while(true){
+      delay(0); // Code to compatible with ESP8266 watch dog.
+    }
+  }
+  Serial.println(F("DFPlayer Mini online."));
+  
+  myDFPlayer.volume(15);  //Set volume value. From 0 to 30
+  
+
+  //setting the relay and led pins
+  pinMode(LEDyear, OUTPUT);
+  pinMode(LEDsound, OUTPUT);
+  digitalWrite(LEDyear, LOW);
+  digitalWrite(LEDsound, LOW);
+}
+
+
+void loop() {
+  
+  int result = 0;
+  //READ INPUTS
+  for (int i = 0; i < 2; i++) {
+    analogRead(potPins[i]);
+    delay(5);
+    inputValues[i] = analogRead(potPins[i]);
+  }
+
+
+  //mapping the input values to the range we want on the potentiometer values
+  for (int i = 0; i < 2; i++) {
+    int newPotValues = map(inputValues[i], 0, 1023, 0, 10);
+    potValues[i] = newPotValues;
+    //we read each pot value and then add it to the result. This is where both pot values create one of our answers in the answer correctPosition array.
+    result = result + newPotValues;
+    delay(10);    
+  }
+    //What is the final result from the previous FOR. Let's print it for debugging.
+      Serial.println();
+      Serial.print("POTSUM = ");
+      Serial.print(result);
+      delay(10);
+
+  bool allPotsCorrect = true; //Let's assume that the pots are in their correct position.
+  //We can check our pot positions against each number in the array. Every time an incorrect reading is discovered return a FALSE value for allPotsCorrect
+    for (int i=0; i<5; i++){
+      if (result != correctPosition[i]){
+        allPotsCorrect = false;       
+        Serial.println();
+        Serial.print("ARRAY RESULT = ");
+        Serial.print(correctPosition[i]);
+        Serial.println();
+      }
+      //Otherwise, if one of the positions does match we claim all pots are true!
+      else {
+        allPotsCorrect = true;
+        Serial.println();
+        Serial.print("RED");//for debugging
+        Serial.println();
+        break;//if the pots are correct we want to stop reading the values and move onto playing the files. 
+      }      
+    }
+    //We want to make sure that the mp3 player stops playing when the dial is turned away from a correct position.
+    if (!allPotsCorrect){
+      isSolved = false;
+      myDFPlayer.stop();
+      Serial.print("BLUE");//for debugging
+      Serial.println();
+    }
+  //COMPARE AGAINST TARGET VALUEs
+      //Music should only play if the puzzle is not already in a solved state. If it is in solved state and this loop runs, it will continuously trigger the sound file.
+    if (allPotsCorrect && !isSolved){  
+      if (result == 4) {
+      isSolved = true;
+      Serial.print("solved 001");
+      digitalWrite(LEDsound, HIGH);
+      digitalWrite(LEDyear, HIGH);
+      myDFPlayer.play(001);
+      Serial.println();
+      Serial.print("playing file 01");
+      Serial.println();
+      delay(10);
+      }     
+
+      if (result == 9) {
+      isSolved = true;
+      Serial.print("solved 002");
+      digitalWrite(LEDsound, HIGH);
+      digitalWrite(LEDyear, HIGH);
+      myDFPlayer.play(002);
+      Serial.println("playing file 02");
+      delay(10);
+      }
+
+      if (result == 13) { 
+      isSolved = true;
+      Serial.print("solved 003");
+      digitalWrite(LEDsound, HIGH);
+      digitalWrite(LEDyear, HIGH);
+      myDFPlayer.play(003);
+      Serial.println("playing file 03");
+      delay(10);
+      }
+
+      if (result == 14){
+      isSolved = true;
+      Serial.print("solved 004");
+      digitalWrite(LEDsound, HIGH);
+      digitalWrite(LEDyear, HIGH);
+      myDFPlayer.play(004);
+      Serial.println("playing file 04");
+      delay(10);
+      }
+
+      if (result == 15){
+      isSolved = true;
+      Serial.print("solved 005");
+      digitalWrite(LEDsound, HIGH);
+      digitalWrite(LEDyear, HIGH);
+      myDFPlayer.play(005);
+      Serial.println("playing file 05");
+      delay(10);
+      } 
+    }
+
+    start:
+  delay(50);
+}
